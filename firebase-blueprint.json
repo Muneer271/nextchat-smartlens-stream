@@ -1,0 +1,105 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile document storing basic account metadata.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 128 },
+        "photoURL": { "type": "string", "maxLength": 512 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "email", "createdAt", "updatedAt"]
+    },
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "Chat session containing settings, token budget metrics, and rolling summary.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 256 },
+        "model": { "type": "string", "maxLength": 64 },
+        "rollingSummary": { "type": "string", "maxLength": 4096 },
+        "totalTokensUsed": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Individual message in a conversation session.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "sessionId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "role": { "type": "string", "enum": ["user", "model", "system"] },
+        "content": { "type": "string", "maxLength": 32768 },
+        "tokens": { "type": "number" },
+        "searchGrounding": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "sessionId", "userId", "role", "content", "createdAt"]
+    },
+    "LensScan": {
+      "title": "LensScan",
+      "description": "Captured and translated OCR frame block record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "rawText": { "type": "string", "maxLength": 8192 },
+        "cleanedText": { "type": "string", "maxLength": 8192 },
+        "translatedText": { "type": "string", "maxLength": 8192 },
+        "targetLang": { "type": "string", "maxLength": 16 },
+        "confidence": { "type": "number" },
+        "vlmSecondOpinion": { "type": "string", "maxLength": 4096 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "cleanedText", "targetLang", "createdAt"]
+    },
+    "BenchmarkRun": {
+      "title": "BenchmarkRun",
+      "description": "Evaluation benchmark record comparing baseline vs pipeline metrics.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "cerReduction": { "type": "number" },
+        "werReduction": { "type": "number" },
+        "noiseReduction": { "type": "number" },
+        "avgLatencyMs": { "type": "number" },
+        "samplesCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "cerReduction", "avgLatencyMs", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User private profile."
+    },
+    "/users/{userId}/chat_sessions/{sessionId}": {
+      "schema": "ChatSession",
+      "description": "User conversation sessions."
+    },
+    "/users/{userId}/chat_sessions/{sessionId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Messages belonging to a chat session."
+    },
+    "/users/{userId}/lens_scans/{scanId}": {
+      "schema": "LensScan",
+      "description": "Saved Smart Lens captures and translations."
+    },
+    "/users/{userId}/benchmarks/{benchmarkId}": {
+      "schema": "BenchmarkRun",
+      "description": "User evaluation benchmark records."
+    }
+  }
+}

@@ -1,0 +1,146 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net Default-Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity Validation Helpers
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['userId', 'email', 'createdAt', 'updatedAt']) &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             data.email is string && data.email.size() <= 256 &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidChatSession(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'createdAt', 'updatedAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             data.title is string && data.title.size() <= 256 &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidChatMessage(data, userId, sessionId) {
+      return data.keys().hasAll(['id', 'sessionId', 'userId', 'role', 'content', 'createdAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.sessionId == sessionId &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             (data.role == 'user' || data.role == 'model' || data.role == 'system') &&
+             data.content is string && data.content.size() <= 32768 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidLensScan(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'cleanedText', 'targetLang', 'createdAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             data.cleanedText is string && data.cleanedText.size() <= 8192 &&
+             data.targetLang is string && data.targetLang.size() <= 16 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidBenchmarkRun(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'cerReduction', 'avgLatencyMs', 'createdAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.userId == userId &&
+             data.userId == request.auth.uid &&
+             data.cerReduction is number &&
+             data.avgLatencyMs is number &&
+             data.createdAt is timestamp;
+    }
+
+    // Match /users/{userId}
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) &&
+                    isValidUserProfile(incoming(), userId) &&
+                    incoming().userId == existing().userId &&
+                    incoming().createdAt == existing().createdAt;
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Match /users/{userId}/chat_sessions/{sessionId}
+      match /chat_sessions/{sessionId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(sessionId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(sessionId) && isValidChatSession(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(sessionId) &&
+                      isValidChatSession(incoming(), userId) &&
+                      incoming().id == existing().id &&
+                      incoming().userId == existing().userId &&
+                      incoming().createdAt == existing().createdAt;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(sessionId);
+
+        // Match /users/{userId}/chat_sessions/{sessionId}/messages/{messageId}
+        match /messages/{messageId} {
+          allow get: if isOwner(userId) && isValidId(userId) && isValidId(sessionId) && isValidId(messageId);
+          allow list: if isOwner(userId) && isValidId(userId) && isValidId(sessionId);
+          allow create: if isOwner(userId) && isValidId(userId) && isValidId(sessionId) && isValidId(messageId) &&
+                        isValidChatMessage(incoming(), userId, sessionId);
+          allow update: if isOwner(userId) && isValidId(userId) && isValidId(sessionId) && isValidId(messageId) &&
+                        isValidChatMessage(incoming(), userId, sessionId) &&
+                        incoming().id == existing().id &&
+                        incoming().sessionId == existing().sessionId &&
+                        incoming().userId == existing().userId &&
+                        incoming().createdAt == existing().createdAt;
+          allow delete: if isOwner(userId) && isValidId(userId) && isValidId(sessionId) && isValidId(messageId);
+        }
+      }
+
+      // Match /users/{userId}/lens_scans/{scanId}
+      match /lens_scans/{scanId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(scanId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(scanId) && isValidLensScan(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(scanId) &&
+                      isValidLensScan(incoming(), userId) &&
+                      incoming().id == existing().id &&
+                      incoming().userId == existing().userId &&
+                      incoming().createdAt == existing().createdAt;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(scanId);
+      }
+
+      // Match /users/{userId}/benchmarks/{benchmarkId}
+      match /benchmarks/{benchmarkId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(benchmarkId);
+        allow list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(benchmarkId) && isValidBenchmarkRun(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(benchmarkId) &&
+                      isValidBenchmarkRun(incoming(), userId) &&
+                      incoming().id == existing().id &&
+                      incoming().userId == existing().userId &&
+                      incoming().createdAt == existing().createdAt;
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(benchmarkId);
+      }
+    }
+  }
+}

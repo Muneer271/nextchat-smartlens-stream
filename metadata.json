@@ -1,0 +1,6 @@
+{
+  "name": "Next Chat AI & Smart Lens: Streaming Vision-Language & Edge OCR System",
+  "description": "Streaming vision-language chat with dynamic sliding-window context memory, on-device WASM OCR, real-time camera translation with AR overlay, bioscience intelligence, and interactive 3D spatial lens.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
